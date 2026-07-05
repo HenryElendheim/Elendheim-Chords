@@ -16,9 +16,14 @@ on:
         description: "Only rewrite the notes on an existing release, no build"
         required: false
         default: "false"
+      delete_only:
+        description: "Delete the release and its tag, no build"
+        required: false
+        default: "false"
 
 env:
   VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
+  BUILD: ${{ (inputs.notes_only != 'true' && inputs.delete_only != 'true') && 'true' || 'false' }}
 
 permissions:
   contents: write
@@ -30,35 +35,42 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Set up JDK 21
-        if: ${{ inputs.notes_only != 'true' }}
+        if: ${{ env.BUILD == 'true' }}
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 21
 
       - name: Set up Gradle
-        if: ${{ inputs.notes_only != 'true' }}
+        if: ${{ env.BUILD == 'true' }}
         uses: gradle/actions/setup-gradle@v4
 
       - name: Test and build APK
-        if: ${{ inputs.notes_only != 'true' }}
+        if: ${{ env.BUILD == 'true' }}
         run: ./gradlew testDebugUnitTest assembleDebug
 
       - name: Name APK after the release
-        if: ${{ inputs.notes_only != 'true' }}
+        if: ${{ env.BUILD == 'true' }}
         run: cp app/build/outputs/apk/debug/app-debug.apk "elendheim-chords-${{ env.VERSION }}.apk"
 
       - name: Publish release
-        if: ${{ inputs.notes_only != 'true' }}
+        if: ${{ env.BUILD == 'true' }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.VERSION }}
           name: ${{ env.VERSION }}
+          target_commitish: ${{ github.sha }}
           files: elendheim-chords-*.apk
           body: ${{ inputs.notes || '' }}
 
       - name: Rewrite notes on an existing release
         if: ${{ inputs.notes_only == 'true' }}
         run: gh release edit "${{ env.VERSION }}" -R "${{ github.repository }}" --notes "${{ inputs.notes }}"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Delete release and tag
+        if: ${{ inputs.delete_only == 'true' }}
+        run: gh release delete "${{ env.VERSION }}" -R "${{ github.repository }}" --cleanup-tag --yes
         env:
           GH_TOKEN: ${{ github.token }}
