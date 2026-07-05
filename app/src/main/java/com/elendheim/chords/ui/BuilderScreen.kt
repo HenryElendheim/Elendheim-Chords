@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material3.AlertDialog
@@ -47,6 +48,7 @@ import com.elendheim.chords.model.Note
 fun BuilderScreen(
     selectedNotes: Set<Int>,
     progression: List<List<Int>>,
+    editingBar: Int?,
     onKeyTap: (Int) -> Unit,
     onRemoveNote: (Int) -> Unit,
     onPlay: () -> Unit,
@@ -59,6 +61,8 @@ fun BuilderScreen(
     onMoveBar: (Int, Int) -> Unit,
     onSaveProgression: (String) -> Unit,
     onExportMidi: (Uri) -> Unit,
+    onEditBar: (Int) -> Unit,
+    onCancelEdit: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var showSaveDialog by rememberSaveable { mutableStateOf(false) }
@@ -98,6 +102,19 @@ fun BuilderScreen(
                         }
                         TextButton(onClick = onClear) {
                             Text("Clear")
+                        }
+                    }
+                }
+                if (editingBar != null) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "Editing bar ${editingBar + 1}",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.tertiary,
+                            modifier = Modifier.weight(1f)
+                        )
+                        TextButton(onClick = onCancelEdit) {
+                            Text("Cancel")
                         }
                     }
                 }
@@ -155,7 +172,7 @@ fun BuilderScreen(
                     .weight(1f)
                     .height(48.dp)
             ) {
-                Text("Set")
+                Text(if (editingBar != null) "Update" else "Set")
             }
         }
 
@@ -204,6 +221,15 @@ fun BuilderScreen(
                 Icon(
                     imageVector = Icons.Outlined.FileDownload,
                     contentDescription = "Export as MIDI file"
+                )
+            }
+            IconButton(
+                onClick = { selectedBar?.let(onEditBar) },
+                enabled = selectedBar != null
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Edit,
+                    contentDescription = "Edit selected bar on the keyboard"
                 )
             }
             IconButton(

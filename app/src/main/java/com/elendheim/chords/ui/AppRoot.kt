@@ -43,6 +43,7 @@ fun AppRoot(viewModel: ChordsViewModel = viewModel()) {
     val library by viewModel.library.collectAsState()
     val progression by viewModel.progression.collectAsState()
     val progressionLibrary by viewModel.progressionLibrary.collectAsState()
+    val editingBar by viewModel.editingBar.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
@@ -99,6 +100,9 @@ fun AppRoot(viewModel: ChordsViewModel = viewModel()) {
             TAB_BUILD -> BuilderScreen(
                 selectedNotes = selectedNotes,
                 progression = progression,
+                editingBar = editingBar,
+                onEditBar = viewModel::startEditingBar,
+                onCancelEdit = viewModel::cancelEditingBar,
                 onKeyTap = viewModel::toggleNote,
                 onRemoveNote = viewModel::removeNote,
                 onPlay = viewModel::playSelection,

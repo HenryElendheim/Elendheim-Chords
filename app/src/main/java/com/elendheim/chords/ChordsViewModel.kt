@@ -37,6 +37,10 @@ class ChordsViewModel(application: Application) : AndroidViewModel(application) 
     private val _progressionLibrary = MutableStateFlow<List<SavedProgression>>(emptyList())
     val progressionLibrary: StateFlow<List<SavedProgression>> = _progressionLibrary.asStateFlow()
 
+    // Index of the bar currently being edited on the keyboard, if any.
+    private val _editingBar = MutableStateFlow<Int?>(null)
+    val editingBar: StateFlow<Int?> = _editingBar.asStateFlow()
+
     private var progressionJob: Job? = null
 
     init {
@@ -73,15 +77,44 @@ class ChordsViewModel(application: Application) : AndroidViewModel(application) 
         if (chord.notes.isNotEmpty()) playNotes(chord.notes.sorted())
     }
 
-    /** Appends the current selection to the progression as the next bar. */
+    /**
+     * Appends the current selection to the progression as the next bar, or,
+     * while editing an existing bar, replaces that bar in place.
+     */
     fun setBar() {
         val notes = _selectedNotes.value.sorted()
         if (notes.isEmpty()) return
-        _progression.value = _progression.value + listOf(notes)
+        val editing = _editingBar.value
+        if (editing != null && editing in _progression.value.indices) {
+            _progression.value = _progression.value.mapIndexed { i, bar ->
+                if (i == editing) notes else bar
+            }
+            _editingBar.value = null
+        } else {
+            _progression.value = _progression.value + listOf(notes)
+        }
+    }
+
+    /** Loads the bar's notes onto the keyboard so Set becomes Update. */
+    fun startEditingBar(index: Int) {
+        val bar = _progression.value.getOrNull(index) ?: return
+        _selectedNotes.value = bar.toSet()
+        _editingBar.value = index
+    }
+
+    fun cancelEditingBar() {
+        _editingBar.value = null
     }
 
     fun deleteBar(index: Int) {
         _progression.value = _progression.value.filterIndexed { i, _ -> i != index }
+        _editingBar.value = _editingBar.value?.let { editing ->
+            when {
+                editing == index -> null
+                editing > index -> editing - 1
+                else -> editing
+            }
+        }
     }
 
     fun moveBar(from: Int, to: Int) {
@@ -90,6 +123,14 @@ class ChordsViewModel(application: Application) : AndroidViewModel(application) 
         val bar = bars.removeAt(from)
         bars.add(to, bar)
         _progression.value = bars
+        _editingBar.value = _editingBar.value?.let { editing ->
+            when {
+                editing == from -> to
+                from < editing && to >= editing -> editing - 1
+                from > editing && to <= editing -> editing + 1
+                else -> editing
+            }
+        }
     }
 
     fun playBar(index: Int) {
@@ -137,6 +178,7 @@ class ChordsViewModel(application: Application) : AndroidViewModel(application) 
 
     fun loadProgressionIntoBuilder(progression: SavedProgression) {
         _progression.value = progression.bars
+        _editingBar.value = null
     }
 
     private fun updateProgressionLibrary(progressions: List<SavedProgression>) {
