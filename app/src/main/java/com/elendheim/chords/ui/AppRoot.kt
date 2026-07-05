@@ -41,6 +41,7 @@ fun AppRoot(viewModel: ChordsViewModel = viewModel()) {
     var selectedTab by rememberSaveable { mutableIntStateOf(TAB_BUILD) }
     val selectedNotes by viewModel.selectedNotes.collectAsState()
     val library by viewModel.library.collectAsState()
+    val progression by viewModel.progression.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
@@ -96,10 +97,15 @@ fun AppRoot(viewModel: ChordsViewModel = viewModel()) {
         when (selectedTab) {
             TAB_BUILD -> BuilderScreen(
                 selectedNotes = selectedNotes,
+                progression = progression,
                 onKeyTap = viewModel::toggleNote,
                 onRemoveNote = viewModel::removeNote,
                 onPlay = viewModel::playSelection,
                 onClear = viewModel::clearSelection,
+                onSetBar = viewModel::setBar,
+                onPlayBar = viewModel::playBar,
+                onPlayProgression = viewModel::playProgression,
+                onDeleteBar = viewModel::deleteBar,
                 onSave = { name ->
                     val label = Note.chordLabel(selectedNotes)
                     if (viewModel.saveSelection(name)) {

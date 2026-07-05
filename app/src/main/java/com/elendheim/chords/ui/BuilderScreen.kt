@@ -14,12 +14,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -39,14 +41,20 @@ import com.elendheim.chords.model.Note
 @Composable
 fun BuilderScreen(
     selectedNotes: Set<Int>,
+    progression: List<List<Int>>,
     onKeyTap: (Int) -> Unit,
     onRemoveNote: (Int) -> Unit,
     onPlay: () -> Unit,
     onClear: () -> Unit,
     onSave: (String) -> Unit,
+    onSetBar: () -> Unit,
+    onPlayBar: (Int) -> Unit,
+    onPlayProgression: () -> Unit,
+    onDeleteBar: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var showSaveDialog by rememberSaveable { mutableStateOf(false) }
+    var selectedBar by rememberSaveable { mutableStateOf<Int?>(null) }
     val sortedNotes = selectedNotes.sorted()
 
     Column(modifier = modifier.fillMaxSize()) {
@@ -109,22 +117,29 @@ fun BuilderScreen(
                 enabled = sortedNotes.isNotEmpty(),
                 modifier = Modifier
                     .weight(1f)
-                    .height(52.dp)
+                    .height(48.dp)
             ) {
                 Icon(Icons.Filled.PlayArrow, contentDescription = null)
-                Text("Play", modifier = Modifier.padding(start = 6.dp))
+                Text("Play", modifier = Modifier.padding(start = 4.dp))
+            }
+            FilledTonalButton(
+                onClick = onSetBar,
+                enabled = sortedNotes.isNotEmpty(),
+                modifier = Modifier.height(48.dp)
+            ) {
+                Text("Set")
             }
             FilledTonalButton(
                 onClick = { showSaveDialog = true },
                 enabled = sortedNotes.isNotEmpty(),
-                modifier = Modifier.height(52.dp)
+                modifier = Modifier.height(48.dp)
             ) {
                 Text("Save")
             }
             TextButton(
                 onClick = onClear,
                 enabled = sortedNotes.isNotEmpty(),
-                modifier = Modifier.height(52.dp)
+                modifier = Modifier.height(48.dp)
             ) {
                 Text("Clear")
             }
@@ -136,6 +151,51 @@ fun BuilderScreen(
             modifier = Modifier
                 .weight(1f)
                 .padding(top = 12.dp)
+        )
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 8.dp, top = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Progression",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f)
+            )
+            TextButton(
+                onClick = onPlayProgression,
+                enabled = progression.isNotEmpty()
+            ) {
+                Text("Play all")
+            }
+            IconButton(
+                onClick = {
+                    selectedBar?.let(onDeleteBar)
+                    selectedBar = null
+                },
+                enabled = selectedBar != null
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Delete,
+                    contentDescription = "Delete selected bar"
+                )
+            }
+        }
+
+        PianoRoll(
+            bars = progression,
+            selectedBar = selectedBar,
+            onBarTap = { index ->
+                selectedBar = index
+                onPlayBar(index)
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(104.dp)
+                .padding(start = 16.dp, end = 16.dp, bottom = 6.dp)
         )
     }
 

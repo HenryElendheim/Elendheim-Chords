@@ -8,6 +8,8 @@ import com.elendheim.chords.data.ChordStore
 import com.elendheim.chords.model.SavedChord
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,6 +25,12 @@ class ChordsViewModel(application: Application) : AndroidViewModel(application) 
 
     private val _library = MutableStateFlow<List<SavedChord>>(emptyList())
     val library: StateFlow<List<SavedChord>> = _library.asStateFlow()
+
+    // The progression: each bar is a chord, in the order they were set.
+    private val _progression = MutableStateFlow<List<List<Int>>>(emptyList())
+    val progression: StateFlow<List<List<Int>>> = _progression.asStateFlow()
+
+    private var progressionJob: Job? = null
 
     init {
         viewModelScope.launch(Dispatchers.IO) {
@@ -57,7 +65,37 @@ class ChordsViewModel(application: Application) : AndroidViewModel(application) 
         if (chord.notes.isNotEmpty()) playNotes(chord.notes.sorted())
     }
 
+    /** Appends the current selection to the progression as the next bar. */
+    fun setBar() {
+        val notes = _selectedNotes.value.sorted()
+        if (notes.isEmpty()) return
+        _progression.value = _progression.value + listOf(notes)
+    }
+
+    fun deleteBar(index: Int) {
+        _progression.value = _progression.value.filterIndexed { i, _ -> i != index }
+    }
+
+    fun playBar(index: Int) {
+        _progression.value.getOrNull(index)?.let { playNotes(it) }
+    }
+
+    /** Plays the progression bar by bar. */
+    fun playProgression() {
+        val bars = _progression.value
+        if (bars.isEmpty()) return
+        progressionJob?.cancel()
+        progressionJob = viewModelScope.launch(Dispatchers.Default) {
+            for (bar in bars) {
+                val pcm = synth.render(bar, durationSeconds = 1.25)
+                synth.play(pcm)
+                delay(1100)
+            }
+        }
+    }
+
     private fun playNotes(midis: List<Int>, durationSeconds: Double = 1.7) {
+        progressionJob?.cancel()
         viewModelScope.launch(Dispatchers.Default) {
             val pcm = synth.render(midis, durationSeconds)
             synth.play(pcm)

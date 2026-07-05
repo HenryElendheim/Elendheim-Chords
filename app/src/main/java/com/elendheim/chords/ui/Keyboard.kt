@@ -37,8 +37,8 @@ import com.elendheim.chords.model.Note
 import com.elendheim.chords.ui.theme.KeyEbony
 import com.elendheim.chords.ui.theme.KeyIvory
 
-private val WHITE_KEY_WIDTH = 54.dp
-private val BLACK_KEY_WIDTH = 34.dp
+private val WHITE_KEY_WIDTH = 40.dp
+private val BLACK_KEY_WIDTH = 26.dp
 private const val BLACK_KEY_HEIGHT_FRACTION = 0.58f
 
 // C2 through C7 gives plenty of room without feeling endless.
@@ -130,9 +130,9 @@ private fun WhiteKey(
         if (showLabel) {
             Text(
                 text = label,
-                modifier = Modifier.padding(bottom = 10.dp),
+                modifier = Modifier.padding(bottom = 8.dp),
                 color = if (selected) MaterialTheme.colorScheme.onPrimary else Color(0xFF8A7C7C),
-                fontSize = 13.sp,
+                fontSize = 11.sp,
                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
             )
         }
@@ -173,9 +173,9 @@ private fun BoxScope.BlackKey(
         if (selected) {
             Text(
                 text = label,
-                modifier = Modifier.padding(bottom = 8.dp),
+                modifier = Modifier.padding(bottom = 6.dp),
                 color = MaterialTheme.colorScheme.onPrimary,
-                fontSize = 11.sp,
+                fontSize = 9.sp,
                 fontWeight = FontWeight.Bold
             )
         }
