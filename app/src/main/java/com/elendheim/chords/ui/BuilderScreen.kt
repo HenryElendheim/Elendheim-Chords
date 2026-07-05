@@ -1,0 +1,195 @@
+package com.elendheim.chords.ui
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.material3.Button
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import com.elendheim.chords.model.Note
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun BuilderScreen(
+    selectedNotes: Set<Int>,
+    onKeyTap: (Int) -> Unit,
+    onRemoveNote: (Int) -> Unit,
+    onPlay: () -> Unit,
+    onClear: () -> Unit,
+    onSave: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var showSaveDialog by rememberSaveable { mutableStateOf(false) }
+    val sortedNotes = selectedNotes.sorted()
+
+    Column(modifier = modifier.fillMaxSize()) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant
+        ) {
+            Column(Modifier.padding(16.dp)) {
+                Text(
+                    text = if (sortedNotes.isEmpty()) "Your chord" else Note.chordLabel(sortedNotes),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = if (sortedNotes.isEmpty()) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.primary
+                    }
+                )
+                if (sortedNotes.isEmpty()) {
+                    Text(
+                        text = "Tap keys below to add notes. Tap a note again to take it out.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                } else {
+                    FlowRow(
+                        modifier = Modifier.padding(top = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        for (midi in sortedNotes) {
+                            AssistChip(
+                                onClick = { onRemoveNote(midi) },
+                                label = { Text(Note.label(midi)) },
+                                trailingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Filled.Close,
+                                        contentDescription = "Remove ${Note.label(midi)}",
+                                        modifier = Modifier.size(AssistChipDefaults.IconSize)
+                                    )
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Button(
+                onClick = onPlay,
+                enabled = sortedNotes.isNotEmpty(),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(52.dp)
+            ) {
+                Icon(Icons.Filled.PlayArrow, contentDescription = null)
+                Text("Play", modifier = Modifier.padding(start = 6.dp))
+            }
+            FilledTonalButton(
+                onClick = { showSaveDialog = true },
+                enabled = sortedNotes.isNotEmpty(),
+                modifier = Modifier.height(52.dp)
+            ) {
+                Text("Save")
+            }
+            TextButton(
+                onClick = onClear,
+                enabled = sortedNotes.isNotEmpty(),
+                modifier = Modifier.height(52.dp)
+            ) {
+                Text("Clear")
+            }
+        }
+
+        Keyboard(
+            selectedNotes = selectedNotes,
+            onKeyTap = onKeyTap,
+            modifier = Modifier
+                .weight(1f)
+                .padding(top = 12.dp)
+        )
+    }
+
+    if (showSaveDialog) {
+        SaveChordDialog(
+            defaultName = Note.chordLabel(sortedNotes),
+            onConfirm = { name ->
+                showSaveDialog = false
+                onSave(name)
+            },
+            onDismiss = { showSaveDialog = false }
+        )
+    }
+}
+
+@Composable
+private fun SaveChordDialog(
+    defaultName: String,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var name by rememberSaveable { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Name this chord") },
+        text = {
+            Column {
+                Text(
+                    text = defaultName,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Name") },
+                    placeholder = { Text("Chorus pad") },
+                    singleLine = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp)
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(name) }) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
