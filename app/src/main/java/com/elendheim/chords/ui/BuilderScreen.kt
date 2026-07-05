@@ -11,10 +11,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.FileDownload
+import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
@@ -52,11 +57,20 @@ fun BuilderScreen(
     onPlayProgression: () -> Unit,
     onDeleteBar: (Int) -> Unit,
     onMoveBar: (Int, Int) -> Unit,
+    onSaveProgression: (String) -> Unit,
+    onExportMidi: (Uri) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var showSaveDialog by rememberSaveable { mutableStateOf(false) }
+    var showSaveProgressionDialog by rememberSaveable { mutableStateOf(false) }
     var selectedBar by rememberSaveable { mutableStateOf<Int?>(null) }
     val sortedNotes = selectedNotes.sorted()
+
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("audio/midi")
+    ) { uri ->
+        if (uri != null) onExportMidi(uri)
+    }
 
     Column(modifier = modifier.fillMaxSize()) {
         Surface(
@@ -165,11 +179,32 @@ fun BuilderScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.weight(1f)
             )
-            TextButton(
+            IconButton(
                 onClick = onPlayProgression,
                 enabled = progression.isNotEmpty()
             ) {
-                Text("Play all")
+                Icon(
+                    imageVector = Icons.Filled.PlayArrow,
+                    contentDescription = "Play the progression"
+                )
+            }
+            IconButton(
+                onClick = { showSaveProgressionDialog = true },
+                enabled = progression.isNotEmpty()
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Save,
+                    contentDescription = "Save the progression"
+                )
+            }
+            IconButton(
+                onClick = { exportLauncher.launch("progression.mid") },
+                enabled = progression.isNotEmpty()
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.FileDownload,
+                    contentDescription = "Export as MIDI file"
+                )
             }
             IconButton(
                 onClick = {
@@ -211,8 +246,10 @@ fun BuilderScreen(
     }
 
     if (showSaveDialog) {
-        SaveChordDialog(
-            defaultName = Note.chordLabel(sortedNotes),
+        NameDialog(
+            title = "Name this chord",
+            subtitle = Note.chordLabel(sortedNotes),
+            placeholder = "Chorus pad",
             onConfirm = { name ->
                 showSaveDialog = false
                 onSave(name)
@@ -220,11 +257,26 @@ fun BuilderScreen(
             onDismiss = { showSaveDialog = false }
         )
     }
+
+    if (showSaveProgressionDialog) {
+        NameDialog(
+            title = "Name this progression",
+            subtitle = "${progression.size} bars",
+            placeholder = "Verse loop",
+            onConfirm = { name ->
+                showSaveProgressionDialog = false
+                onSaveProgression(name)
+            },
+            onDismiss = { showSaveProgressionDialog = false }
+        )
+    }
 }
 
 @Composable
-private fun SaveChordDialog(
-    defaultName: String,
+private fun NameDialog(
+    title: String,
+    subtitle: String,
+    placeholder: String,
     onConfirm: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -232,11 +284,11 @@ private fun SaveChordDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Name this chord") },
+        title = { Text(title) },
         text = {
             Column {
                 Text(
-                    text = defaultName,
+                    text = subtitle,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -244,7 +296,7 @@ private fun SaveChordDialog(
                     value = name,
                     onValueChange = { name = it },
                     label = { Text("Name") },
-                    placeholder = { Text("Chorus pad") },
+                    placeholder = { Text(placeholder) },
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()

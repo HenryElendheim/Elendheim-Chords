@@ -42,6 +42,7 @@ fun AppRoot(viewModel: ChordsViewModel = viewModel()) {
     val selectedNotes by viewModel.selectedNotes.collectAsState()
     val library by viewModel.library.collectAsState()
     val progression by viewModel.progression.collectAsState()
+    val progressionLibrary by viewModel.progressionLibrary.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
@@ -107,6 +108,21 @@ fun AppRoot(viewModel: ChordsViewModel = viewModel()) {
                 onPlayProgression = viewModel::playProgression,
                 onDeleteBar = viewModel::deleteBar,
                 onMoveBar = viewModel::moveBar,
+                onSaveProgression = { name ->
+                    if (viewModel.saveProgression(name)) {
+                        scope.launch {
+                            snackbarHostState.showSnackbar("Progression saved")
+                        }
+                    }
+                },
+                onExportMidi = { uri ->
+                    scope.launch {
+                        val exported = viewModel.exportMidi(uri)
+                        snackbarHostState.showSnackbar(
+                            if (exported) "MIDI file exported" else "Could not export the MIDI file"
+                        )
+                    }
+                },
                 onSave = { name ->
                     val label = Note.chordLabel(selectedNotes)
                     if (viewModel.saveSelection(name)) {
@@ -120,12 +136,19 @@ fun AppRoot(viewModel: ChordsViewModel = viewModel()) {
             )
             TAB_LIBRARY -> LibraryScreen(
                 chords = library,
-                onPlay = viewModel::playChord,
-                onEdit = { chord ->
+                progressions = progressionLibrary,
+                onPlayChord = viewModel::playChord,
+                onEditChord = { chord ->
                     viewModel.loadIntoBuilder(chord)
                     selectedTab = TAB_BUILD
                 },
-                onDelete = { viewModel.deleteChord(it.id) },
+                onDeleteChord = { viewModel.deleteChord(it.id) },
+                onPlayProgression = viewModel::playSavedProgression,
+                onEditProgression = { progressionItem ->
+                    viewModel.loadProgressionIntoBuilder(progressionItem)
+                    selectedTab = TAB_BUILD
+                },
+                onDeleteProgression = { viewModel.deleteProgression(it.id) },
                 modifier = contentModifier
             )
         }

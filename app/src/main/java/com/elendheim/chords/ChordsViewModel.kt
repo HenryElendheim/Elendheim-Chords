@@ -1,11 +1,14 @@
 package com.elendheim.chords
 
 import android.app.Application
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.elendheim.chords.audio.ChordSynth
 import com.elendheim.chords.data.ChordStore
+import com.elendheim.chords.midi.MidiWriter
 import com.elendheim.chords.model.SavedChord
+import com.elendheim.chords.model.SavedProgression
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -14,6 +17,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class ChordsViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -30,11 +34,15 @@ class ChordsViewModel(application: Application) : AndroidViewModel(application) 
     private val _progression = MutableStateFlow<List<List<Int>>>(emptyList())
     val progression: StateFlow<List<List<Int>>> = _progression.asStateFlow()
 
+    private val _progressionLibrary = MutableStateFlow<List<SavedProgression>>(emptyList())
+    val progressionLibrary: StateFlow<List<SavedProgression>> = _progressionLibrary.asStateFlow()
+
     private var progressionJob: Job? = null
 
     init {
         viewModelScope.launch(Dispatchers.IO) {
             _library.value = store.load()
+            _progressionLibrary.value = store.loadProgressions()
         }
     }
 
@@ -88,9 +96,16 @@ class ChordsViewModel(application: Application) : AndroidViewModel(application) 
         _progression.value.getOrNull(index)?.let { playNotes(it) }
     }
 
-    /** Plays the progression bar by bar. */
+    /** Plays the current progression bar by bar. */
     fun playProgression() {
-        val bars = _progression.value
+        playBarsInSequence(_progression.value)
+    }
+
+    fun playSavedProgression(progression: SavedProgression) {
+        playBarsInSequence(progression.bars)
+    }
+
+    private fun playBarsInSequence(bars: List<List<Int>>) {
         if (bars.isEmpty()) return
         progressionJob?.cancel()
         progressionJob = viewModelScope.launch(Dispatchers.Default) {
@@ -99,6 +114,50 @@ class ChordsViewModel(application: Application) : AndroidViewModel(application) 
                 synth.play(pcm)
                 delay(1100)
             }
+        }
+    }
+
+    /** Saves the current progression under the given name. */
+    fun saveProgression(name: String): Boolean {
+        val bars = _progression.value
+        if (bars.isEmpty()) return false
+        val progression = SavedProgression(
+            id = UUID.randomUUID().toString(),
+            name = name.trim().ifEmpty { "Progression ${_progressionLibrary.value.size + 1}" },
+            bars = bars,
+            createdAt = System.currentTimeMillis()
+        )
+        updateProgressionLibrary(listOf(progression) + _progressionLibrary.value)
+        return true
+    }
+
+    fun deleteProgression(id: String) {
+        updateProgressionLibrary(_progressionLibrary.value.filterNot { it.id == id })
+    }
+
+    fun loadProgressionIntoBuilder(progression: SavedProgression) {
+        _progression.value = progression.bars
+    }
+
+    private fun updateProgressionLibrary(progressions: List<SavedProgression>) {
+        _progressionLibrary.value = progressions
+        viewModelScope.launch(Dispatchers.IO) {
+            store.saveProgressions(progressions)
+        }
+    }
+
+    /** Writes the current progression to the given document as a MIDI file. */
+    suspend fun exportMidi(uri: Uri): Boolean = withContext(Dispatchers.IO) {
+        val bars = _progression.value
+        if (bars.isEmpty()) return@withContext false
+        try {
+            val resolver = getApplication<Application>().contentResolver
+            resolver.openOutputStream(uri)?.use { stream ->
+                stream.write(MidiWriter.fromBars(bars))
+                true
+            } ?: false
+        } catch (e: Exception) {
+            false
         }
     }
 

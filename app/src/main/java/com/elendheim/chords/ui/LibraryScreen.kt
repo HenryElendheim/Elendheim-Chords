@@ -32,28 +32,34 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.elendheim.chords.model.SavedChord
+import com.elendheim.chords.model.SavedProgression
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LibraryScreen(
     chords: List<SavedChord>,
-    onPlay: (SavedChord) -> Unit,
-    onEdit: (SavedChord) -> Unit,
-    onDelete: (SavedChord) -> Unit,
+    progressions: List<SavedProgression>,
+    onPlayChord: (SavedChord) -> Unit,
+    onEditChord: (SavedChord) -> Unit,
+    onDeleteChord: (SavedChord) -> Unit,
+    onPlayProgression: (SavedProgression) -> Unit,
+    onEditProgression: (SavedProgression) -> Unit,
+    onDeleteProgression: (SavedProgression) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var pendingDelete by rememberSaveable { mutableStateOf<String?>(null) }
+    var pendingDeleteChord by rememberSaveable { mutableStateOf<String?>(null) }
+    var pendingDeleteProgression by rememberSaveable { mutableStateOf<String?>(null) }
 
-    if (chords.isEmpty()) {
+    if (chords.isEmpty() && progressions.isEmpty()) {
         Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    text = "No chords yet",
+                    text = "Nothing saved yet",
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    text = "Build a chord on the keyboard and save it.\nIt will live here.",
+                    text = "Build a chord or a progression on the keyboard\nand save it. It will live here.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
@@ -69,73 +75,146 @@ fun LibraryScreen(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        items(chords, key = { it.id }) { chord ->
-            ElevatedCard(
-                onClick = { onPlay(chord) },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 16.dp, end = 4.dp, top = 12.dp, bottom = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            text = chord.name,
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                        Text(
-                            text = chord.notesLabel,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(top = 2.dp)
-                        )
-                    }
-                    IconButton(onClick = { onPlay(chord) }) {
-                        Icon(
-                            imageVector = Icons.Filled.PlayArrow,
-                            contentDescription = "Play ${chord.name}"
-                        )
-                    }
-                    IconButton(onClick = { onEdit(chord) }) {
-                        Icon(
-                            imageVector = Icons.Outlined.Edit,
-                            contentDescription = "Open ${chord.name} on the keyboard"
-                        )
-                    }
-                    IconButton(onClick = { pendingDelete = chord.id }) {
-                        Icon(
-                            imageVector = Icons.Outlined.Delete,
-                            contentDescription = "Delete ${chord.name}"
-                        )
-                    }
-                }
+        if (progressions.isNotEmpty()) {
+            item(key = "header-progressions") {
+                SectionHeader("Progressions")
+            }
+            items(progressions, key = { "p-${it.id}" }) { progression ->
+                LibraryCard(
+                    title = progression.name,
+                    detail = if (progression.bars.size == 1) "1 bar" else "${progression.bars.size} bars",
+                    onPlay = { onPlayProgression(progression) },
+                    onEdit = { onEditProgression(progression) },
+                    onDelete = { pendingDeleteProgression = progression.id }
+                )
+            }
+        }
+        if (chords.isNotEmpty()) {
+            item(key = "header-chords") {
+                SectionHeader("Chords")
+            }
+            items(chords, key = { "c-${it.id}" }) { chord ->
+                LibraryCard(
+                    title = chord.name,
+                    detail = chord.notesLabel,
+                    onPlay = { onPlayChord(chord) },
+                    onEdit = { onEditChord(chord) },
+                    onDelete = { pendingDeleteChord = chord.id }
+                )
             }
         }
     }
 
-    val deleteTarget = chords.firstOrNull { it.id == pendingDelete }
-    if (deleteTarget != null) {
-        AlertDialog(
-            onDismissRequest = { pendingDelete = null },
-            title = { Text("Delete ${deleteTarget.name}?") },
-            text = { Text("${deleteTarget.notesLabel} will be removed from your library.") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        pendingDelete = null
-                        onDelete(deleteTarget)
-                    }
-                ) {
-                    Text("Delete")
-                }
+    val chordToDelete = chords.firstOrNull { it.id == pendingDeleteChord }
+    if (chordToDelete != null) {
+        DeleteDialog(
+            title = "Delete ${chordToDelete.name}?",
+            text = "${chordToDelete.notesLabel} will be removed from your library.",
+            onConfirm = {
+                pendingDeleteChord = null
+                onDeleteChord(chordToDelete)
             },
-            dismissButton = {
-                TextButton(onClick = { pendingDelete = null }) {
-                    Text("Cancel")
-                }
-            }
+            onDismiss = { pendingDeleteChord = null }
         )
     }
+
+    val progressionToDelete = progressions.firstOrNull { it.id == pendingDeleteProgression }
+    if (progressionToDelete != null) {
+        DeleteDialog(
+            title = "Delete ${progressionToDelete.name}?",
+            text = "The progression and its ${progressionToDelete.bars.size} bars will be removed from your library.",
+            onConfirm = {
+                pendingDeleteProgression = null
+                onDeleteProgression(progressionToDelete)
+            },
+            onDismiss = { pendingDeleteProgression = null }
+        )
+    }
+}
+
+@Composable
+private fun SectionHeader(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(top = 4.dp, bottom = 2.dp)
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LibraryCard(
+    title: String,
+    detail: String,
+    onPlay: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
+    ElevatedCard(
+        onClick = onPlay,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 4.dp, top = 12.dp, bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    text = detail,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+            }
+            IconButton(onClick = onPlay) {
+                Icon(
+                    imageVector = Icons.Filled.PlayArrow,
+                    contentDescription = "Play $title"
+                )
+            }
+            IconButton(onClick = onEdit) {
+                Icon(
+                    imageVector = Icons.Outlined.Edit,
+                    contentDescription = "Open $title on the keyboard"
+                )
+            }
+            IconButton(onClick = onDelete) {
+                Icon(
+                    imageVector = Icons.Outlined.Delete,
+                    contentDescription = "Delete $title"
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DeleteDialog(
+    title: String,
+    text: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = { Text(text) },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("Delete")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }
