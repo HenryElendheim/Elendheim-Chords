@@ -8,6 +8,10 @@ on:
       version:
         description: "Release tag, e.g. v1.0"
         required: true
+      notes:
+        description: "Release notes"
+        required: false
+        default: ""
 
 env:
   VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
@@ -42,4 +46,4 @@ jobs:
           tag_name: ${{ env.VERSION }}
           name: ${{ env.VERSION }}
           files: elendheim-chords-*.apk
-          generate_release_notes: true
+          body: ${{ inputs.notes || '' }}
