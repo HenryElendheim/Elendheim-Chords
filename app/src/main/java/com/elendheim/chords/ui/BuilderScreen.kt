@@ -51,6 +51,7 @@ fun BuilderScreen(
     onPlayBar: (Int) -> Unit,
     onPlayProgression: () -> Unit,
     onDeleteBar: (Int) -> Unit,
+    onMoveBar: (Int, Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var showSaveDialog by rememberSaveable { mutableStateOf(false) }
@@ -65,16 +66,27 @@ fun BuilderScreen(
             shape = RoundedCornerShape(16.dp),
             color = MaterialTheme.colorScheme.surfaceVariant
         ) {
-            Column(Modifier.padding(16.dp)) {
-                Text(
-                    text = if (sortedNotes.isEmpty()) "Your chord" else Note.chordLabel(sortedNotes),
-                    style = MaterialTheme.typography.titleLarge,
-                    color = if (sortedNotes.isEmpty()) {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    } else {
-                        MaterialTheme.colorScheme.primary
+            Column(Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = if (sortedNotes.isEmpty()) "Your chord" else Note.chordLabel(sortedNotes),
+                        style = MaterialTheme.typography.titleLarge,
+                        color = if (sortedNotes.isEmpty()) {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        } else {
+                            MaterialTheme.colorScheme.primary
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                    if (sortedNotes.isNotEmpty()) {
+                        TextButton(onClick = { showSaveDialog = true }) {
+                            Text("Save")
+                        }
+                        TextButton(onClick = onClear) {
+                            Text("Clear")
+                        }
                     }
-                )
+                }
                 if (sortedNotes.isEmpty()) {
                     Text(
                         text = "Tap keys below to add notes. Tap a note again to take it out.",
@@ -125,23 +137,11 @@ fun BuilderScreen(
             FilledTonalButton(
                 onClick = onSetBar,
                 enabled = sortedNotes.isNotEmpty(),
-                modifier = Modifier.height(48.dp)
+                modifier = Modifier
+                    .weight(1f)
+                    .height(48.dp)
             ) {
                 Text("Set")
-            }
-            FilledTonalButton(
-                onClick = { showSaveDialog = true },
-                enabled = sortedNotes.isNotEmpty(),
-                modifier = Modifier.height(48.dp)
-            ) {
-                Text("Save")
-            }
-            TextButton(
-                onClick = onClear,
-                enabled = sortedNotes.isNotEmpty(),
-                modifier = Modifier.height(48.dp)
-            ) {
-                Text("Clear")
             }
         }
 
@@ -149,7 +149,7 @@ fun BuilderScreen(
             selectedNotes = selectedNotes,
             onKeyTap = onKeyTap,
             modifier = Modifier
-                .weight(1f)
+                .weight(3f)
                 .padding(top = 12.dp)
         )
 
@@ -192,9 +192,20 @@ fun BuilderScreen(
                 selectedBar = index
                 onPlayBar(index)
             },
+            onMoveBar = { from, to ->
+                onMoveBar(from, to)
+                selectedBar = selectedBar?.let { sel ->
+                    when {
+                        sel == from -> to
+                        from < sel && to >= sel -> sel - 1
+                        from > sel && to <= sel -> sel + 1
+                        else -> sel
+                    }
+                }
+            },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(104.dp)
+                .weight(1f)
                 .padding(start = 16.dp, end = 16.dp, bottom = 6.dp)
         )
     }

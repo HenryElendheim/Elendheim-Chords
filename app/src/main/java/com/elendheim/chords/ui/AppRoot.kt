@@ -106,6 +106,7 @@ fun AppRoot(viewModel: ChordsViewModel = viewModel()) {
                 onPlayBar = viewModel::playBar,
                 onPlayProgression = viewModel::playProgression,
                 onDeleteBar = viewModel::deleteBar,
+                onMoveBar = viewModel::moveBar,
                 onSave = { name ->
                     val label = Note.chordLabel(selectedNotes)
                     if (viewModel.saveSelection(name)) {

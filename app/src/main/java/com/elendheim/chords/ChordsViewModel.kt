@@ -76,6 +76,14 @@ class ChordsViewModel(application: Application) : AndroidViewModel(application) 
         _progression.value = _progression.value.filterIndexed { i, _ -> i != index }
     }
 
+    fun moveBar(from: Int, to: Int) {
+        val bars = _progression.value.toMutableList()
+        if (from !in bars.indices || to !in bars.indices || from == to) return
+        val bar = bars.removeAt(from)
+        bars.add(to, bar)
+        _progression.value = bars
+    }
+
     fun playBar(index: Int) {
         _progression.value.getOrNull(index)?.let { playNotes(it) }
     }
